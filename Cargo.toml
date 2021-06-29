@@ -15,6 +15,7 @@ serde = {version = "1.0.126", features = ["derive"]}
 serde_json = "1.0.64"
 serde_with = "1.9.4"
 #soa_derive = "0.10.0"
-soa_derive = {git = "https://github.com/liusong1111/soa-derive"}
+#soa_derive = {git = "https://github.com/liusong1111/soa-derive"}
+soa_derive = {path = "../soa-derive"}
 tokio = {version = "1.7.1", features = ["full"]}
 uuid = {version = "0.8.2", features=["serde", "v4"]}

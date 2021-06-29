@@ -760,7 +760,6 @@ checksum = "fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e"
 [[package]]
 name = "soa_derive"
 version = "0.10.0"
-source = "git+https://github.com/liusong1111/soa-derive#19e993b5637102627315508d5a56bc6bebfdc5c4"
 dependencies = [
  "soa_derive_internal",
 ]
@@ -768,7 +767,6 @@ dependencies = [
 [[package]]
 name = "soa_derive_internal"
 version = "0.10.0"
-source = "git+https://github.com/liusong1111/soa-derive#19e993b5637102627315508d5a56bc6bebfdc5c4"
 dependencies = [
  "proc-macro2",
  "quote",

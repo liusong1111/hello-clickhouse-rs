@@ -71,7 +71,7 @@ pub struct LectureAndPerson {
     pub lecture_person_id: String,
     // pub htype: Vec<String>,
     // pub end: Vec<i64>,
-    #[serde_as(as = "AggVec")]
+    #[serde_as(as = "LectureAggVec")]
     pub agg: Vec<LectureAgg>,
 }
 
@@ -152,7 +152,8 @@ async fn main() -> Result<()> {
     let ch_db = std::env::var("CH_DB").unwrap();
     let ch_user = std::env::var("CH_USER").unwrap();
     let ch_password = std::env::var("CH_PASSWORD").unwrap();
-
+    let a: Vec<LectureAgg> = vec![];
+    let v = LectureAggVec::from(a);
     let cli = Client::default()
         .with_url(ch_url)
         .with_database(ch_db)
@@ -167,55 +168,7 @@ join lecture_person lp on l.lecture_id  = lp.lecture_id
 join lecture_person_segment lps on lps.lecture_person_id = lp.lecture_person_id 
 group by l.lecture_id, lp.lecture_person_id ";
     let a: Vec<LectureAndPerson> = cli.query(q).fetch_all().await?;
-    // let mut b: Vec<LectureAndPerson1> = vec![];
-    // for item in a.iter() {
-    //     b.push(item.into());
-    // }
     println!("x={}", serde_json::to_string_pretty(&a).unwrap());
-
-    // let tenant_id = "t1".to_string();
-    // let lecture_start_time = DateTime64::now();
-    // let width = 88;
-    // let height = 66;
-    // let mut segments = SegmentVec::new();
-    // for i in 0..3 {
-    //     segments.push(Segment {
-    //         start: 10000 * i,
-    //         end: 20000 * i,
-    //         score: 0.9,
-    //         htype: "Happy".into(),
-    //     });
-    // }
-    // // let lecture_person_id = Uuid::new_v4();
-    // // println!("lecture_person_id={}", lecture_person_id);
-    // let ps = LecturePersonSegmentForInsert {
-    //     tenant_id,
-    //     // lecture_person_id,
-    //     lecture_start_time,
-    //     width,
-    //     height,
-    //     segments_start: segments.start,
-    //     segments_end: segments.end,
-    //     segments_htype: segments.htype,
-    //     segments_score: segments.score,
-    //     // segments,
-    // };
-    // let mut inserter = cli.insert("lecture_person_segment").unwrap();
-    // if let Err(e) = inserter.write(&ps).await {
-    //     println!("ch write error={}", e);
-    // }
-    // if let Err(e) = inserter.end().await {
-    //     println!("ch write end error={}", e);
-    // }
-
-    // println!("write ok");
-    // let segs: Vec<LecturePersonSegmentForSelect> = cli
-    //     .query("select ?fields from lecture_person_segment")
-    //     .fetch_all()
-    //     .await?;
-    // for seg in segs {
-    //     println!("item={:?}", seg);
-    // }
 
     Ok(())
 }
