@@ -1,6 +1,8 @@
 use clickhouse::{error::Result, Client, Row};
+use itertools::izip;
 use serde::{Deserialize, Serialize};
-use soa_derive::StructOfArray;
+use serde_with::{serde_as, DeserializeAs, SerializeAs};
+use soa_derive::{soa_zip, StructOfArray};
 use std::fmt;
 use std::{
     fmt::Display,
@@ -62,6 +64,76 @@ pub struct LecturePersonSegmentForInsert {
     segments_score: Vec<f32>,
 }
 
+#[serde_as]
+#[derive(Clone, Debug, Row, Serialize, Deserialize)]
+pub struct LectureAndPerson {
+    pub lecture_id: i64,
+    pub lecture_person_id: String,
+    // pub htype: Vec<String>,
+    // pub end: Vec<i64>,
+    #[serde_as(as = "AggVec")]
+    pub agg: Vec<LectureAgg>,
+}
+
+#[derive(Clone, Debug, Row, Serialize, Deserialize, StructOfArray)]
+#[soa_derive = "Clone, Debug, Serialize, Deserialize"]
+pub struct LectureAgg {
+    pub htype: String,
+    pub end: i64,
+}
+
+#[derive(Clone, Debug, Row, Serialize, Deserialize)]
+pub struct AggVec {
+    pub htype: Vec<String>,
+    pub end: Vec<i64>,
+}
+
+impl SerializeAs<Vec<LectureAgg>> for AggVec {
+    fn serialize_as<S>(source: &Vec<LectureAgg>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // let ret = AggVec {
+        //     htype: vec![],
+        //     end: vec![],
+        // };
+        // ret.serialize(serializer)
+        source.serialize(serializer)
+    }
+}
+
+impl<'de> DeserializeAs<'de, Vec<LectureAgg>> for AggVec {
+    fn deserialize_as<D>(deserializer: D) -> Result<Vec<LectureAgg>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let data = AggVec::deserialize(deserializer).map_err(serde::de::Error::custom)?;
+        println!("data={:?}", data);
+        let mut ret: Vec<LectureAgg> = vec![];
+        for (htype, end) in izip!(data.htype, data.end) {
+            ret.push(LectureAgg { htype, end });
+        }
+        Ok(ret)
+    }
+}
+
+// impl From<&LectureAndPerson> for LectureAndPerson1 {
+//     fn from(a: &LectureAndPerson) -> Self {
+//         let mut persons = vec![];
+//         for (htype, end) in izip!(&a.agg.htype, &a.agg.end) {
+//             persons.push(LectureAgg {
+//                 htype: htype.clone(),
+//                 end: *end,
+//             });
+//         }
+//         LectureAndPerson1 {
+//             lecture_id: a.lecture_id,
+//             lecture_person_id: a.lecture_person_id.clone(),
+//             persons,
+//         }
+//     }
+// }
+
 #[derive(Clone, Debug, Row, Serialize, Deserialize)]
 pub struct LecturePersonSegmentForSelect {
     tenant_id: String,
@@ -88,50 +160,62 @@ async fn main() -> Result<()> {
         .with_password(ch_password);
     let c: u64 = cli.query("select count(*) from tenant").fetch_one().await?;
     println!("c={}", c);
+    let q = "select l.lecture_id lecture_id, lp.lecture_person_id lecture_person_id,
+    groupArray(lps.htype) as htype, groupArray(lps.end) as end
+from lecture l
+join lecture_person lp on l.lecture_id  = lp.lecture_id 
+join lecture_person_segment lps on lps.lecture_person_id = lp.lecture_person_id 
+group by l.lecture_id, lp.lecture_person_id ";
+    let a: Vec<LectureAndPerson> = cli.query(q).fetch_all().await?;
+    // let mut b: Vec<LectureAndPerson1> = vec![];
+    // for item in a.iter() {
+    //     b.push(item.into());
+    // }
+    println!("x={}", serde_json::to_string_pretty(&a).unwrap());
 
-    let tenant_id = "t1".to_string();
-    let lecture_start_time = DateTime64::now();
-    let width = 88;
-    let height = 66;
-    let mut segments = SegmentVec::new();
-    for i in 0..3 {
-        segments.push(Segment {
-            start: 10000 * i,
-            end: 20000 * i,
-            score: 0.9,
-            htype: "Happy".into(),
-        });
-    }
-    // let lecture_person_id = Uuid::new_v4();
-    // println!("lecture_person_id={}", lecture_person_id);
-    let ps = LecturePersonSegmentForInsert {
-        tenant_id,
-        // lecture_person_id,
-        lecture_start_time,
-        width,
-        height,
-        segments_start: segments.start,
-        segments_end: segments.end,
-        segments_htype: segments.htype,
-        segments_score: segments.score,
-        // segments,
-    };
-    let mut inserter = cli.insert("lecture_person_segment").unwrap();
-    if let Err(e) = inserter.write(&ps).await {
-        println!("ch write error={}", e);
-    }
-    if let Err(e) = inserter.end().await {
-        println!("ch write end error={}", e);
-    }
+    // let tenant_id = "t1".to_string();
+    // let lecture_start_time = DateTime64::now();
+    // let width = 88;
+    // let height = 66;
+    // let mut segments = SegmentVec::new();
+    // for i in 0..3 {
+    //     segments.push(Segment {
+    //         start: 10000 * i,
+    //         end: 20000 * i,
+    //         score: 0.9,
+    //         htype: "Happy".into(),
+    //     });
+    // }
+    // // let lecture_person_id = Uuid::new_v4();
+    // // println!("lecture_person_id={}", lecture_person_id);
+    // let ps = LecturePersonSegmentForInsert {
+    //     tenant_id,
+    //     // lecture_person_id,
+    //     lecture_start_time,
+    //     width,
+    //     height,
+    //     segments_start: segments.start,
+    //     segments_end: segments.end,
+    //     segments_htype: segments.htype,
+    //     segments_score: segments.score,
+    //     // segments,
+    // };
+    // let mut inserter = cli.insert("lecture_person_segment").unwrap();
+    // if let Err(e) = inserter.write(&ps).await {
+    //     println!("ch write error={}", e);
+    // }
+    // if let Err(e) = inserter.end().await {
+    //     println!("ch write end error={}", e);
+    // }
 
-    println!("write ok");
-    let segs: Vec<LecturePersonSegmentForSelect> = cli
-        .query("select ?fields from lecture_person_segment")
-        .fetch_all()
-        .await?;
-    for seg in segs {
-        println!("item={:?}", seg);
-    }
+    // println!("write ok");
+    // let segs: Vec<LecturePersonSegmentForSelect> = cli
+    //     .query("select ?fields from lecture_person_segment")
+    //     .fetch_all()
+    //     .await?;
+    // for seg in segs {
+    //     println!("item={:?}", seg);
+    // }
 
     Ok(())
 }
